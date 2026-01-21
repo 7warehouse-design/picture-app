@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>그림예언 | 2026년을 밝히는 2가지 빛</title>
+    <meta name="description" content="24개의 예언적 그림을 통해 당신의 무의식과 만나보세요.">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&family=Nanum+Myeongjo:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #020617;
+            --violet-primary: #8b5cf6;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .serif-font {
+            font-family: 'Nanum Myeongjo', serif;
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-glow:hover {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+        }
+        img {
+            -webkit-user-drag: none;
+            pointer-events: none;
+        }
+        .clickable {
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8b5cf6;
+        }
+    </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "@google/genai": "https://esm.sh/@google/genai@1.34.0"
+      }
+    }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { GoogleGenAI } from '@google/genai';
+
+        // --- Constants & Data ---
+        const ThemeKey = {
+            CREATION: "CREATION", PIONEERING: "PIONEERING", LOVE: "LOVE",
+            PASSION: "PASSION", JOY: "JOY", COURAGE: "COURAGE",
+            FREEDOM: "FREEDOM", UNITY: "UNITY", DIALOGUE: "DIALOGUE",
+            REWARD: "REWARD", GROWTH: "GROWTH", NOBILITY: "NOBILITY"
+        };
+
+        const THEME_NAMES = {
+            [ThemeKey.CREATION]: { ko: "창조", en: "Creation", zh: "创造", ja: "創造" },
+            [ThemeKey.PIONEERING]: { ko: "개척", en: "Pioneering", zh: "开拓", ja: "開拓" },
+            [ThemeKey.LOVE]: { ko: "사랑", en: "Love", zh: "爱", ja: "愛" },
+            [ThemeKey.PASSION]: { ko: "열정", en: "Passion", zh: "热情", ja: "情熱" },
+            [ThemeKey.JOY]: { ko: "기쁨", en: "Joy", zh: "喜悦", ja: "喜び" },
+            [ThemeKey.COURAGE]: { ko: "용기", en: "Courage", zh: "勇气", ja: "勇気" },
+            [ThemeKey.FREEDOM]: { ko: "자유", en: "Freedom", zh: "自由", ja: "自由" },
+            [ThemeKey.UNITY]: { ko: "연합", en: "Unity", zh: "团结", ja: "連合" },
+            [ThemeKey.DIALOGUE]: { ko: "대화", en: "Dialogue", zh: "对话", ja: "対話" },
+            [ThemeKey.REWARD]: { ko: "보상", en: "Reward", zh: "奖励", ja: "報酬" },
+            [ThemeKey.GROWTH]: { ko: "성장", en: "Growth", zh: "成长", ja: "成長" },
+            [ThemeKey.NOBILITY]: { ko: "귀족", en: "Nobility", zh: "高贵", ja: "貴族" }
+        };
+
+        const THEME_IMAGE_MAP = {
+            [ThemeKey.CREATION]: "img1.png", [ThemeKey.REWARD]: "img2.png", [ThemeKey.NOBILITY]: "img3.png",
+            [ThemeKey.LOVE]: "img4.png", [ThemeKey.JOY]: "img5.png", [ThemeKey.GROWTH]: "img6.png",
+            [ThemeKey.UNITY]: "img7.png", [ThemeKey.FREEDOM]: "img8.png", [ThemeKey.PIONEERING]: "img9.png",
+            [ThemeKey.DIALOGUE]: "img10.png", [ThemeKey.COURAGE]: "img11.png", [ThemeKey.PASSION]: "img12.png"
+        };
+
+        const UI_STRINGS = {
+            title: { ko: "그림예언: 12가지 여정", en: "Art Prophecy", zh: "绘画预言", ja: "絵画の預言" },
+            light1: { ko: "첫 번째 빛", en: "1st Light", zh: "第一道光", ja: "第一の光" },
+            light2: { ko: "두 번째 빛", en: "2nd Light", zh: "두 번째 빛", ja: "第二の光" },
+            loading: { ko: "영감을 불러오는 중...", en: "Loading inspiration...", zh: "唤起灵感...", ja: "読み込み中..." },
+            prophecyTitle: { ko: "당신에게 닿은 예언", en: "Message for You", zh: "给您的启示", ja: "あなたへの預言" },
+            nextButton: { ko: "다음 여정 이어가기", en: "Continue", zh: "继续", ja: "次へ" },
+            finishButton: { ko: "여정 마무리하기", en: "Finish", zh: "完成", ja: "終了" },
+            restartButton: { ko: "다시 시작하기", en: "Restart", zh: "重新开始", ja: "最初から" },
+            shareButton: { ko: "메시지 공유하기", en: "Share", zh: "分享", ja: "共有" },
+            donationTitle: { ko: "여정을 마칩니다", en: "Journey Ends", zh: "旅程结束", ja: "旅を終えます" },
+            donationSubtitle: { ko: "발견한 두 가지 진심이 당신의 일상에 빛이 되기를 소망합니다.", en: "May these truths light your way.", zh: "愿真谛成为您的光.", ja: "この光があなたの力になりますように." }
+        };
+
+        const ARTIST_INFO = {
+            name: "세븐그림창고",
+            copyrightYear: "2026",
+            backgroundMusicUrl: "https://cdn.pixabay.com/audio/2022/05/27/audio_1808f3030c.mp3",
+            legalNotice: { ko: "본 그림의 저작권은 창작자에게 있으며 무단 도용을 금합니다.", en: "Copyright © Artist. Unauthorized use prohibited.", zh: "版权所有，严禁盗用。", ja: "著作権は創作主に帰属します。" }
+        };
+
+        const ART_DATA = Array.from({ length: 24 }).map((_, index) => {
+            const keys = Object.values(ThemeKey);
+            const themeKey = keys[index % 12];
+            const round = Math.floor(index / 12) + 1;
+            return {
+                id: index + 1,
+                themeKey,
+                round,
+                imageUrl: `images/${THEME_IMAGE_MAP[themeKey]}`
+            };
+        });
+
+        // --- AI Service ---
+        const generateMessage = async (themeKey, round, lang) => {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const themeName = THEME_NAMES[themeKey][lang];
+            const prompt = `You are a healing artist. Provide a warm, poetic prophetic message for 2026 based on the theme '${themeName}'. Round ${round}/2. Max 200 chars. Language: ${lang}.`;
+            
+            try {
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-flash-preview',
+                    contents: prompt,
+                    config: { temperature: 0.8 }
+                });
+                return response.text;
+            } catch (e) {
+                console.error(e);
+                return "내면의 목소리에 귀를 기울여보세요. (Inspiration is coming soon)";
+            }
+        };
+
+        // --- Components ---
+
+        const BackgroundMusic = ({ isPlaying, onToggle }) => (
+            <button onClick={onToggle} className={`w-10 h-10 rounded-full glass flex items-center justify-center transition-all ${isPlaying ? 'border-violet-500 shadow-lg' : 'opacity-60'}`}>
+                {isPlaying ? (
+                    <div className="flex gap-0.5 items-end h-3">
+                        <div className="w-0.5 bg-violet-400 animate-bounce h-2"></div>
+                        <div className="w-0.5 bg-violet-400 animate-bounce h-3" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-0.5 bg-violet-400 animate-bounce h-1" style={{animationDelay: '0.4s'}}></div>
+                    </div>
+                ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                )}
+            </button>
+        );
+
+        const ArtCard = ({ art, lang, onSelect }) => (
+            <div onClick={onSelect} className="group relative aspect-[3/4] overflow-hidden rounded-2xl glass card-glow transition-all duration-500 hover:scale-[1.03] cursor-pointer">
+                <img src={art.imageUrl} alt={THEME_NAMES[art.themeKey][lang]} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-6">
+                    <span className="text-white font-medium tracking-widest">{THEME_NAMES[art.themeKey][lang]}</span>
+                </div>
+                <div className="absolute inset-2 border border-white/5 rounded-xl pointer-events-none"></div>
+            </div>
+        );
+
+        const MessageOverlay = ({ art, message, isLoading, lang, onNext, isFinal }) => (
+            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16 animate-fadeIn max-w-5xl mx-auto py-8">
+                <div className="w-full max-w-[300px] md:max-w-sm rounded-3xl overflow-hidden glass p-2 shadow-2xl">
+                    <img src={art.imageUrl} className="w-full aspect-[3/4] object-cover rounded-2xl" />
+                    <div className="text-center py-4">
+                        <span className="px-4 py-1 rounded-full bg-violet-500/20 text-violet-300 text-sm border border-violet-500/30">
+                            {THEME_NAMES[art.themeKey][lang]}
+                        </span>
+                    </div>
+                </div>
+                <div className="flex-1 text-center md:text-left space-y-6">
+                    <h2 className="text-3xl font-bold serif-font text-violet-100">{UI_STRINGS.prophecyTitle[lang]}</h2>
+                    {isLoading ? (
+                        <p className="text-xl text-slate-400 animate-pulse">{UI_STRINGS.loading[lang]}</p>
+                    ) : (
+                        <p className="text-xl text-slate-200 leading-relaxed serif-font break-keep">{message}</p>
+                    )}
+                    <div className="pt-6 flex flex-col sm:flex-row gap-4">
+                        <button onClick={onNext} className="px-10 py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-full shadow-lg transition-all active:scale-95">
+                            {isFinal ? UI_STRINGS.finishButton[lang] : UI_STRINGS.nextButton[lang]}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const DonationSection = ({ lang, onRestart }) => (
+            <div className="max-w-2xl mx-auto glass rounded-[3rem] p-10 md:p-16 text-center space-y-8 animate-fadeIn">
+                <h2 className="text-3xl font-bold serif-font text-violet-200">{UI_STRINGS.donationTitle[lang]}</h2>
+                <p className="text-slate-300 text-lg leading-relaxed">{UI_STRINGS.donationSubtitle[lang]}</p>
+                <div className="py-6">
+                    <div className="inline-block px-8 py-3 rounded-full border border-violet-500/30 text-violet-400 font-bold text-2xl">1,000원</div>
+                </div>
+                <button onClick={onRestart} className="text-slate-500 hover:text-violet-300 transition-colors flex items-center justify-center gap-2 mx-auto">
+                    <span>←</span> {UI_STRINGS.restartButton[lang]}
+                </button>
+            </div>
+        );
+
+        // --- Main App ---
+        const App = () => {
+            const [lang, setLang] = useState('ko');
+            const [round, setRound] = useState(1);
+            const [selectedArt, setSelectedArt] = useState(null);
+            const [message, setMessage] = useState("");
+            const [isLoading, setIsLoading] = useState(false);
+            const [showEnd, setShowEnd] = useState(false);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const audioRef = useRef(new Audio(ARTIST_INFO.backgroundMusicUrl));
+
+            useEffect(() => {
+                audioRef.current.loop = true;
+                if (isPlaying) audioRef.current.play().catch(() => setIsPlaying(false));
+                else audioRef.current.pause();
+            }, [isPlaying]);
+
+            const handleSelect = async (art) => {
+                if (isLoading) return;
+                setIsLoading(true);
+                setSelectedArt(art);
+                if (!isPlaying) setIsPlaying(true);
+                const msg = await generateMessage(art.themeKey, art.round, lang);
+                setMessage(msg);
+                setIsLoading(false);
+            };
+
+            const handleNext = () => {
+                if (round < 2) {
+                    setRound(round + 1);
+                    setSelectedArt(null);
+                    setMessage("");
+                } else {
+                    setShowEnd(true);
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center px-4 py-8 md:px-12">
+                    {/* Sticky Nav */}
+                    <div className="w-full max-w-6xl sticky top-4 z-50 flex items-center justify-between glass rounded-full px-6 py-3 mb-12 shadow-2xl">
+                        <div className="flex gap-2">
+                            {['ko', 'en', 'zh', 'ja'].map(l => (
+                                <button key={l} onClick={() => setLang(l)} className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${lang === l ? 'bg-violet-600' : 'text-slate-400'}`}>
+                                    {l.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                        <BackgroundMusic isPlaying={isPlaying} onToggle={() => setIsPlaying(!isPlaying)} />
+                    </div>
+
+                    <header className="text-center mb-16 space-y-6">
+                        <h1 className="text-4xl md:text-6xl font-extrabold serif-font tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-violet-400">
+                            {UI_STRINGS.title[lang]}
+                        </h1>
+                        {!showEnd && (
+                            <div className="flex justify-center gap-8 mt-10">
+                                {[1, 2].map(r => (
+                                    <div key={r} className="flex flex-col items-center gap-2">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${round === r ? 'bg-violet-600 border-violet-400 scale-110 shadow-glow' : 'opacity-30 border-white/20'}`}>
+                                            <span className="text-xs font-bold">{r}</span>
+                                        </div>
+                                        <span className={`text-[10px] font-medium ${round === r ? 'text-violet-300' : 'text-slate-500'}`}>{UI_STRINGS[`light${r}`][lang]}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </header>
+
+                    <main className="w-full max-w-6xl relative">
+                        {showEnd ? (
+                            <DonationSection lang={lang} onRestart={() => { setShowEnd(false); setRound(1); setSelectedArt(null); }} />
+                        ) : !selectedArt ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8 animate-fadeIn">
+                                {ART_DATA.filter(a => a.round === round).map(art => (
+                                    <ArtCard key={art.id} art={art} lang={lang} onSelect={() => handleSelect(art)} />
+                                ))}
+                            </div>
+                        ) : (
+                            <MessageOverlay art={selectedArt} message={message} isLoading={isLoading} lang={lang} onNext={handleNext} isFinal={round === 2} />
+                        )}
+                    </main>
+
+                    <footer className="mt-auto pt-24 pb-12 text-center text-[10px] text-slate-500 space-y-4">
+                        <p className="italic opacity-70 px-6 max-w-xl mx-auto">{ARTIST_INFO.legalNotice[lang]}</p>
+                        <p>© {ARTIST_INFO.copyrightYear} {ARTIST_INFO.name}. All Rights Reserved.</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
